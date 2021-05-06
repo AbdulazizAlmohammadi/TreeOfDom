@@ -16,6 +16,9 @@ let incY = 7.3;
 let gap = 200;
 let counter = 1;
 let maxChild = 0;
+let isMoving = false;
+let dx = 0;
+let dy = 0;
 ctx.strokeStyle = "black";
 ctx.font = "14px sans-serif";
 let collabseButton = [];
@@ -26,10 +29,12 @@ let root = document.getElementsByTagName("body")[0];
 node = {
   tag: root,
   position: { x: canvas.width / 2, y: 40 },
+  moving: { x: 0, y: 0 },
   nodePath: null,
   children: createTree(root),
   parent: null,
   isOpen: true,
+  isSelected: false,
   isOpenAttributes: false,
   openButtonPath: null,
   valuesButtonPath: null,
@@ -55,6 +60,7 @@ canvas.addEventListener(
   "click",
   function (e) {
     const XY = getXY(canvas, e);
+
     if (ctx.isPointInPath(collabseButton[node.openButtonPath], XY.x, XY.y)) {
       //alert("you clicked on the button");
       node.isOpen = !node.isOpen;
@@ -76,56 +82,81 @@ canvas.addEventListener(
           strAtr += ` ${attributes[i].nodeName} : `;
           strAtr += ` ${attributes[i].nodeValue} \n`;
         }
-        console.log(strAtr);
+
         alert(strAtr);
       }
       return;
     } else {
       searchForValuePath(node, XY);
     }
-    if (ctx.isPointInPath(nodePaths[node.nodePath], XY.x, XY.y)) {
-      let tagName = prompt("Enter element", "");
-      if (tagName.length > 0) {
-        let newELement = document.createElement(tagName);
-        root.appendChild(newELement);
-        node = {
-          tag: root,
-          position: { x: canvas.width / 2, y: 40 },
-          nodePath: null,
-          children: createTree(root),
-          parent: null,
-          isOpen: true,
-          isOpenAttributes: false,
-          openButtonPath: null,
-          valuesButtonPath: null,
-          depth: 0,
-        };
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        DrawDOMTree();
-      }
-    } else {
-      searchForAddingNode(node, XY);
-    }
   },
   false
 );
 
-canvas.addEventListener(`mousemove`, (e) => {
+canvas.addEventListener("dblclick", (e) => {
   const XY = getXY(canvas, e);
   if (ctx.isPointInPath(nodePaths[node.nodePath], XY.x, XY.y)) {
-    //alert(node.tag.innerHTML);
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    drawInner(node.tag.innerHTML, XY);
-    DrawDOMTree();
+    let tagName = prompt("Enter element", "");
+    if (tagName.length > 0) {
+      let newELement = document.createElement(tagName);
+      root.appendChild(newELement);
+      node.children = createTree(root);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      DrawDOMTree();
+    }
   } else {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    DrawDOMTree();
-    searchForNode(node, XY);
+    searchForAddingNode(node, XY);
+  }
+});
+canvas.addEventListener(`mousemove`, mouseMove);
+
+function mouseMove(e) {
+  const XY = getXY(canvas, e);
+  if (!isMoving) {
+    if (ctx.isPointInPath(nodePaths[node.nodePath], XY.x, XY.y)) {
+      //alert(node.tag.innerHTML);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawInner(node.tag.innerHTML, XY);
+      DrawDOMTree();
+    } else {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      DrawDOMTree();
+      searchForNode(node, XY);
+    }
+  } else {
+    if (node.isSelected) {
+      node.moving.x = XY.x - dx;
+      node.moving.y = XY.y - dy;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      DrawDOMTree();
+    } else {
+      searchForMovingNodeForEnable(node, XY);
+    }
+  }
+}
+
+canvas.addEventListener(`mousedown`, (e) => {
+  const XY = getXY(canvas, e);
+  if (ctx.isPointInPath(nodePaths[node.nodePath], XY.x, XY.y)) {
+    dx = node.position.x - XY.x;
+    dy = node.position.y - XY.y;
+    isMoving = true;
+    node.isSelected = true;
+  } else {
+    searchForMovingNode(node, XY);
+  }
+});
+
+canvas.addEventListener(`mouseup`, () => {
+  isMoving = false;
+  if (node.isSelected) {
+    node.isSelected = false;
+  } else {
+    searchForMovingNodeForFalse(node);
   }
 });
 
 function drawInner(inner, XY) {
-  console.log(inner);
   ctx.fillStyle = "rgba(0 , 0 , 0 , 0.5)";
   ctx.fillRect(XY.x, XY.y, 500, 600);
   ctx.fill();
@@ -178,7 +209,6 @@ function searchForCollapsePath(root, XY) {
       DrawDOMTree();
       return;
     } else if (root.children[i].children.length) {
-      //console.log(root.children[i]);
       searchForCollapsePath(root.children[i], XY);
     }
   }
@@ -204,7 +234,6 @@ function searchForValuePath(root, XY) {
       }
       return;
     } else if (root.children[i].children.length) {
-      console.log(root.children[i]);
       searchForValuePath(root.children[i], XY);
     }
   }
@@ -239,18 +268,7 @@ function searchForAddingNode(cRoot, XY) {
       if (tagName.length > 0) {
         let newELement = document.createElement(tagName);
         cRoot.children[i].tag.appendChild(newELement);
-        node = {
-          tag: root,
-          position: { x: canvas.width / 2, y: 40 },
-          nodePath: null,
-          children: createTree(root),
-          parent: null,
-          isOpen: true,
-          isOpenAttributes: false,
-          openButtonPath: null,
-          valuesButtonPath: null,
-          depth: 0,
-        };
+        node.children = createTree(root);
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         DrawDOMTree();
       }
@@ -258,6 +276,45 @@ function searchForAddingNode(cRoot, XY) {
       return;
     } else if (cRoot.children[i].children.length) {
       searchForAddingNode(cRoot.children[i], XY);
+    }
+  }
+}
+function searchForMovingNode(cRoot, XY) {
+  for (let i = 0; i < cRoot.children.length; i++) {
+    if (
+      cRoot.children[i].nodePath !== null &&
+      ctx.isPointInPath(nodePaths[cRoot.children[i].nodePath], XY.x, XY.y)
+    ) {
+      dx = cRoot.children[i].position.x - XY.x;
+      dy = cRoot.children[i].position.y - XY.y;
+      isMoving = true;
+      cRoot.children[i].isSelected = true;
+      return;
+    } else if (cRoot.children[i].children.length) {
+      searchForMovingNode(cRoot.children[i], XY);
+    }
+  }
+}
+function searchForMovingNodeForFalse(cRoot) {
+  for (let i = 0; i < cRoot.children.length; i++) {
+    if (cRoot.children[i].isSelected) {
+      cRoot.children[i].isSelected = false;
+      return;
+    } else if (cRoot.children[i].children.length) {
+      searchForMovingNodeForFalse(cRoot.children[i]);
+    }
+  }
+}
+function searchForMovingNodeForEnable(cRoot, XY) {
+  for (let i = 0; i < cRoot.children.length; i++) {
+    if (cRoot.children[i].isSelected) {
+      cRoot.children[i].moving.x = XY.x - dx;
+      cRoot.children[i].moving.y = XY.y - dy;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      DrawDOMTree();
+      return;
+    } else if (cRoot.children[i].children.length) {
+      searchForMovingNodeForEnable(cRoot.children[i], XY);
     }
   }
 }
@@ -269,7 +326,13 @@ function searchForAddingNode(cRoot, XY) {
 function DrawDOMTree() {
   ctx.beginPath();
   ctx.fillText(node.tag.nodeName, node.position.x - 15, node.position.y, 54);
+  let moveX = node.moving.x;
+  let moveY = node.moving.y;
   path = new Path2D();
+  if (moveX != 0 && moveY != 0) {
+    node.position.x = moveX;
+    node.position.y = moveY;
+  }
   ctx.arc(node.position.x, node.position.y, radius, 0, Math.PI * 2);
   ctx.stroke();
   path.arc(node.position.x, node.position.y, radius, 0, Math.PI * 2);
@@ -287,7 +350,7 @@ function DrawDOMTree() {
 
 function drawTree(tree, level) {
   num = getNodesPerLevel(level);
-  console.log(num);
+
   let axisY = tree.position.y + 100;
   let axisX = tree.position.x - radius * (maxChild / counter);
   // let axisX = canvas.width / num;
@@ -295,18 +358,27 @@ function drawTree(tree, level) {
   for (let i = 0; i < tree.children.length; i++) {
     let tag = tree.children[i].tag;
     if (tag.nodeName === "#text") continue;
-
-    tree.children[i].nodePath = drawNode(axisX, axisY, tag, tree, i);
+    tree.children[i].position = { x: axisX, y: axisY };
+    let moveX = tree.children[i].moving.x;
+    let moveY = tree.children[i].moving.y;
+    let PosX = axisX;
+    let PosY = axisY;
+    path = new Path2D();
+    if (moveX != 0 && moveY != 0) {
+      PosX = moveX;
+      PosY = moveY;
+    }
+    tree.children[i].nodePath = drawNode(PosX, PosY, tag, tree, i);
     if (
       tree.children[i].tag.attributes &&
       tree.children[i].tag.attributes.length != 0
     )
-      tree.children[i].valuesButtonPath = drawAttribute(axisX, axisY);
+      tree.children[i].valuesButtonPath = drawAttribute(PosX, PosY);
     if (tag.firstChild !== null && tag.firstChild.nodeType === Node.TEXT_NODE) {
-      drawText(axisX, axisY, tag, tree, i);
+      drawText(PosX, PosY, tag, tree, i);
     }
     if (tree.children[i].isOpenAttributes) {
-      drawAtr(tree.children[i].tag.attributes, axisX, axisY);
+      drawAtr(tree.children[i].tag.attributes, PosX, PosY);
     }
     if (
       tag.hasChildNodes &&
@@ -314,19 +386,17 @@ function drawTree(tree, level) {
       tag.firstChild.nodeType !== Node.TEXT_NODE
     ) {
       tree.children[i].openButtonPath = drawOpenClose(
-        axisX,
-        axisY,
+        PosX,
+        PosY,
         tree.children[i].isOpen
       );
       counter++;
-      console.log(tree.isOpen);
+
       if (tree.children[i].isOpen) drawTree(tree.children[i], level + 1);
     } else {
-      console.log(`No ${tag.nodeName}`);
     }
     axisX += 100;
   }
-  console.log(level);
 }
 
 // create the data structur for the tree
@@ -345,8 +415,10 @@ function createTree(rootNode) {
           parent: rootNode,
           //depth: counter,
           position: { x: 0, y: 0 },
+          moving: { x: 0, y: 0 },
           nodePath: null,
           isOpen: true,
+          isSelected: false,
           isOpenAttributes: false,
           openButtonPath: null,
           valuesButtonPath: null,
@@ -359,8 +431,10 @@ function createTree(rootNode) {
           parent: rootNode,
           //depth: counter,
           position: { x: 0, y: 0 },
+          moving: { x: 0, y: 0 },
           nodePath: null,
           isOpen: true,
+          isSelected: false,
           isOpenAttributes: false,
           openButtonPath: null,
           valuesButtonPath: null,
