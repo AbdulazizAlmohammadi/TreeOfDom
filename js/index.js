@@ -83,6 +83,29 @@ canvas.addEventListener(
     } else {
       searchForValuePath(node, XY);
     }
+    if (ctx.isPointInPath(nodePaths[node.nodePath], XY.x, XY.y)) {
+      let tagName = prompt("Enter element", "");
+      if (tagName.length > 0) {
+        let newELement = document.createElement(tagName);
+        root.appendChild(newELement);
+        node = {
+          tag: root,
+          position: { x: canvas.width / 2, y: 40 },
+          nodePath: null,
+          children: createTree(root),
+          parent: null,
+          isOpen: true,
+          isOpenAttributes: false,
+          openButtonPath: null,
+          valuesButtonPath: null,
+          depth: 0,
+        };
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        DrawDOMTree();
+      }
+    } else {
+      searchForAddingNode(node, XY);
+    }
   },
   false
 );
@@ -194,7 +217,7 @@ function searchForNode(root, XY) {
       ctx.isPointInPath(nodePaths[root.children[i].nodePath], XY.x, XY.y)
     ) {
       let inner = root.children[i].tag.innerHTML;
-      if (inner.trim().length != 0) {
+      if (inner && inner.trim().length != 0) {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         drawInner(inner, XY);
         DrawDOMTree();
@@ -202,6 +225,39 @@ function searchForNode(root, XY) {
       return;
     } else if (root.children[i].children.length) {
       searchForNode(root.children[i], XY);
+    }
+  }
+}
+
+function searchForAddingNode(cRoot, XY) {
+  for (let i = 0; i < cRoot.children.length; i++) {
+    if (
+      cRoot.children[i].nodePath !== null &&
+      ctx.isPointInPath(nodePaths[cRoot.children[i].nodePath], XY.x, XY.y)
+    ) {
+      let tagName = prompt("Enter element", "");
+      if (tagName.length > 0) {
+        let newELement = document.createElement(tagName);
+        cRoot.children[i].tag.appendChild(newELement);
+        node = {
+          tag: root,
+          position: { x: canvas.width / 2, y: 40 },
+          nodePath: null,
+          children: createTree(root),
+          parent: null,
+          isOpen: true,
+          isOpenAttributes: false,
+          openButtonPath: null,
+          valuesButtonPath: null,
+          depth: 0,
+        };
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        DrawDOMTree();
+      }
+
+      return;
+    } else if (cRoot.children[i].children.length) {
+      searchForAddingNode(cRoot.children[i], XY);
     }
   }
 }
@@ -241,7 +297,10 @@ function drawTree(tree, level) {
     if (tag.nodeName === "#text") continue;
 
     tree.children[i].nodePath = drawNode(axisX, axisY, tag, tree, i);
-    if (tree.children[i].tag.attributes.length != 0)
+    if (
+      tree.children[i].tag.attributes &&
+      tree.children[i].tag.attributes.length != 0
+    )
       tree.children[i].valuesButtonPath = drawAttribute(axisX, axisY);
     if (tag.firstChild !== null && tag.firstChild.nodeType === Node.TEXT_NODE) {
       drawText(axisX, axisY, tag, tree, i);
