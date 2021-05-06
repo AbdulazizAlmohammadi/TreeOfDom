@@ -1,9 +1,10 @@
 let canvas = document.querySelector("#canvas");
 
 let ctx = canvas.getContext("2d");
+canvas.width = screen.width;
+canvas.height = screen.height;
 let x = canvas.width / 2;
 let y = 40;
-
 let lineLength = 50;
 let angel = 30;
 let radius = 20;
@@ -65,14 +66,14 @@ canvas.addEventListener(
 
 canvas.addEventListener(`mousemove`, (e) => {
   const XY = getXY(canvas, e);
-
   if (ctx.isPointInPath(nodePaths[node.nodePath], XY.x, XY.y)) {
-    alert(node.tag.otterHTML);
+    alert(node.tag.innerHTML);
   } else {
     searchForNode(node, XY);
   }
 });
 
+//Functions for searching in the tree
 function searchForCollapsePath(root, XY) {
   for (let i = 0; i < root.children.length; i++) {
     if (
@@ -83,7 +84,6 @@ function searchForCollapsePath(root, XY) {
         XY.y
       )
     ) {
-      //alert("you clicked on the button");
       root.children[i].isOpen = !root.children[i].isOpen;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       DrawDOMTree();
@@ -131,14 +131,19 @@ function searchForNode(root, XY) {
       root.children[i].nodePath !== null &&
       ctx.isPointInPath(nodePaths[root.children[i].nodePath], XY.x, XY.y)
     ) {
-      alert(root.children[i].tag.innerHTML);
+      let inner = root.children[i].tag.innerHTML;
+      if (inner.trim().length != 0) alert(inner);
       return;
     } else if (root.children[i].children.length) {
       searchForNode(root.children[i], XY);
     }
   }
 }
+/////End Event Listners
 
+///////////////////////////////////
+/////Draw all the tree
+///////////////////////////////////
 function DrawDOMTree() {
   ctx.beginPath();
   ctx.fillText(node.tag.nodeName, node.position.x - 15, node.position.y, 54);
@@ -148,7 +153,11 @@ function DrawDOMTree() {
   path.arc(node.position.x, node.position.y, radius, 0, Math.PI * 2);
   nodePaths.push(path);
   node.nodePath = nodePaths.length - 1;
-  node.openButtonPath = drawOpenClose(node.position.x, node.position.y, node);
+  node.openButtonPath = drawOpenClose(
+    node.position.x,
+    node.position.y,
+    node.isOpen
+  );
   counter = 1;
   if (node.isOpen) drawTree(node, 2);
 }
@@ -175,7 +184,11 @@ function drawTree(tree, level) {
       tag.firstChild !== null &&
       tag.firstChild.nodeType !== Node.TEXT_NODE
     ) {
-      tree.children[i].openButtonPath = drawOpenClose(axisX, axisY);
+      tree.children[i].openButtonPath = drawOpenClose(
+        axisX,
+        axisY,
+        tree.children[i].isOpen
+      );
       counter++;
       console.log(tree.isOpen);
       if (tree.children[i].isOpen) drawTree(tree.children[i], level + 1);
@@ -187,6 +200,9 @@ function drawTree(tree, level) {
   console.log(level);
 }
 
+// create the data structur for the tree
+// we will store the HTML elements in opjects with
+// alot of proparities for our feature
 function createTree(rootNode) {
   let nodes = [];
   if (rootNode.hasChildNodes) {
@@ -226,6 +242,7 @@ function createTree(rootNode) {
   return nodes;
 }
 
+// drawing components of the tree
 function drawNode(axisX, axisY, tag, tree, i) {
   let context = canvas.getContext("2d");
   path = new Path2D();
@@ -261,14 +278,15 @@ function drawText(axisX, axisY, tag, tree, i) {
   context.closePath();
 }
 
-function drawOpenClose(axisX, axisY) {
+function drawOpenClose(axisX, axisY, isOpen) {
   let context = canvas.getContext("2d");
   //let buttonPath = new Path2D();
   path = new Path2D();
   context.fillStyle = "blue";
   context.fillRect(axisX - 30, axisY - 23, 10, 10);
+  context.fillStyle = "white";
+  context.fillText(isOpen ? "-" : "+", axisX - 28, axisY - 13, 54);
   context.fillStyle = "black";
-  context.fillText("+", axisX - 28, axisY - 13, 54);
   path.rect(axisX - 30, axisY - 23, 10, 10);
   collabseButton.push(path);
   return collabseButton.length - 1;
@@ -279,8 +297,9 @@ function drawAttribute(axisX, axisY) {
   path = new Path2D();
   context.fillStyle = "red";
   context.fillRect(axisX - 30, axisY - 5, 10, 10);
-  context.fillStyle = "black";
+  context.fillStyle = "white";
   context.fillText("...", axisX - 28, axisY, 54);
+  context.fillStyle = "black";
   path.rect(axisX - 30, axisY - 5, 10, 10);
   NodevaluesButton.push(path);
   return NodevaluesButton.length - 1;
