@@ -16,11 +16,13 @@ ctx.strokeStyle = "black";
 ctx.font = "14px sans-serif";
 let collabseButton = [];
 let NodevaluesButton = [];
+let nodePaths = [];
 let root = document.getElementsByTagName("body")[0];
 
 node = {
   tag: root,
   position: { x: canvas.width / 2, y: 40 },
+  nodePath: null,
   children: createTree(root),
   parent: null,
   isOpen: true,
@@ -40,7 +42,10 @@ function getXY(canvas, event) {
   return { x: x, y: y };
 }
 
-document.addEventListener(
+////////////////////////////////////
+//Events Listeners
+////////////////////////////////////
+canvas.addEventListener(
   "click",
   function (e) {
     const XY = getXY(canvas, e);
@@ -57,6 +62,16 @@ document.addEventListener(
   },
   false
 );
+
+canvas.addEventListener(`mousemove`, (e) => {
+  const XY = getXY(canvas, e);
+
+  if (ctx.isPointInPath(nodePaths[node.nodePath], XY.x, XY.y)) {
+    alert(node.tag.otterHTML);
+  } else {
+    searchForNode(node, XY);
+  }
+});
 
 function searchForCollapsePath(root, XY) {
   for (let i = 0; i < root.children.length; i++) {
@@ -110,12 +125,29 @@ function searchForValuePath(root, XY) {
   }
 }
 
+function searchForNode(root, XY) {
+  for (let i = 0; i < root.children.length; i++) {
+    if (
+      root.children[i].nodePath !== null &&
+      ctx.isPointInPath(nodePaths[root.children[i].nodePath], XY.x, XY.y)
+    ) {
+      alert(root.children[i].tag.innerHTML);
+      return;
+    } else if (root.children[i].children.length) {
+      searchForNode(root.children[i], XY);
+    }
+  }
+}
+
 function DrawDOMTree() {
   ctx.beginPath();
   ctx.fillText(node.tag.nodeName, node.position.x - 15, node.position.y, 54);
-
+  path = new Path2D();
   ctx.arc(node.position.x, node.position.y, radius, 0, Math.PI * 2);
   ctx.stroke();
+  path.arc(node.position.x, node.position.y, radius, 0, Math.PI * 2);
+  nodePaths.push(path);
+  node.nodePath = nodePaths.length - 1;
   node.openButtonPath = drawOpenClose(node.position.x, node.position.y, node);
   counter = 1;
   if (node.isOpen) drawTree(node, 2);
@@ -132,7 +164,7 @@ function drawTree(tree, level) {
     let tag = tree.children[i].tag;
     if (tag.nodeName === "#text") continue;
 
-    drawNode(axisX, axisY, tag, tree, i);
+    tree.children[i].nodePath = drawNode(axisX, axisY, tag, tree, i);
     tree.children[i].valuesButtonPath = drawAttribute(axisX, axisY);
     if (tag.firstChild !== null && tag.firstChild.nodeType === Node.TEXT_NODE) {
       drawText(axisX, axisY, tag, tree, i);
@@ -168,6 +200,7 @@ function createTree(rootNode) {
           parent: rootNode,
           //depth: counter,
           position: { x: 0, y: 0 },
+          nodePath: null,
           isOpen: true,
           openButtonPath: null,
           valuesButtonPath: null,
@@ -180,6 +213,7 @@ function createTree(rootNode) {
           parent: rootNode,
           //depth: counter,
           position: { x: 0, y: 0 },
+          nodePath: null,
           isOpen: true,
           openButtonPath: null,
           valuesButtonPath: null,
@@ -194,6 +228,7 @@ function createTree(rootNode) {
 
 function drawNode(axisX, axisY, tag, tree, i) {
   let context = canvas.getContext("2d");
+  path = new Path2D();
   context.beginPath();
   context.strokeStyle = "black";
   context.arc(axisX, axisY, radius, 0, Math.PI * 2);
@@ -203,8 +238,11 @@ function drawNode(axisX, axisY, tag, tree, i) {
 
   tree.children[i].position = { x: axisX, y: axisY };
   context.fillText(tag.nodeName, axisX - 15, axisY, 54);
-
   context.closePath();
+  path.arc(axisX, axisY, radius, 0, Math.PI * 2);
+  nodePaths.push(path);
+
+  return nodePaths.length - 1;
 }
 
 function drawText(axisX, axisY, tag, tree, i) {
@@ -260,4 +298,24 @@ function _getNodesPerLevel(e, row) {
   for (let i = 0; i < e.children.length; i++)
     total += _getNodesPerLevel(e.children[i], row - 1);
   return total;
+}
+
+//////////////////////////////////////
+// Save canvas
+//////////////////////////////////////
+
+function saveImage() {
+  const btnDownload = document.querySelector("#save");
+  btnDownload.addEventListener("click", function () {
+    if (window.navigator.msSaveBlob) {
+      window.navigator.msSaveBlob(canvas.msToBlob(), "canvas-image.png");
+    } else {
+      const a = document.createElement("a");
+      document.body.appendChild(a);
+      a.href = canvas.toDataURL("image/png");
+      a.download = "canvas-image.png";
+      a.click();
+      document.body.removeChild(a);
+    }
+  });
 }
